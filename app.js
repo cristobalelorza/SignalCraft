@@ -8,8 +8,10 @@
 const CONFIG = {
     TICK_RATE: 100, // ms per tick
     HISTORY_SIZE: 100, // Number of candles/ticks to show
-    STARTING_BALANCE: 10000,
+    STARTING_BALANCE: 0, // Start with $0, must work first
     COMMISSION: 0.001, // 0.1% fee to discourage spamming
+    HOURLY_WAGE: 15, // $15/hour at McDonald's
+    WORK_SPEED_MULTIPLIER: 360, // 1 real second = 6 minutes game time (8hr work = ~80 seconds)
 };
 
 // --- ENUMS ---
@@ -45,6 +47,14 @@ const state = {
     // Strategy
     autoStrategyActive: false,
     lastStrategyAction: 0, // Tick count of last action
+
+    // Work System
+    currentScreen: 'WORK', // 'WORK' or 'TRADE'
+    workInProgress: false,
+    workStartTime: null,
+    workDuration: 0, // hours
+    totalHoursWorked: 0,
+    workTimerId: null,
 };
 
 // --- DOM ELEMENTS ---
@@ -64,6 +74,16 @@ const ui = {
     btnBuy: document.getElementById('buy-btn'),
     btnSell: document.getElementById('sell-btn'),
     btnStrategy: document.getElementById('strategy-btn'),
+
+    // Work Screen Elements
+    workScreen: document.getElementById('work-screen'),
+    tradeScreen: document.getElementById('trade-screen'),
+    btnWork4h: document.getElementById('work-4h'),
+    btnWork8h: document.getElementById('work-8h'),
+    workProgress: document.getElementById('work-progress'),
+    workTimer: document.getElementById('work-timer'),
+    btnGoToTrade: document.getElementById('go-to-trade'),
+    btnGoToWork: document.getElementById('go-to-work'),
 };
 
 const ctx = ui.canvas.getContext('2d');
@@ -162,6 +182,79 @@ function gameTick() {
     }
 
     updateUI();
+}
+
+// --- WORK SYSTEM ---
+
+function startWork(hours) {
+    if (state.workInProgress) return;
+
+    state.workInProgress = true;
+    state.workStartTime = Date.now();
+    state.workDuration = hours;
+
+    // Show progress UI
+    ui.workProgress.classList.remove('hidden');
+    ui.btnWork4h.disabled = true;
+    ui.btnWork8h.disabled = true;
+
+    // Start timer (simulated time)
+    const totalMs = (hours * 3600 * 1000) / CONFIG.WORK_SPEED_MULTIPLIER; // Real time needed
+    const updateInterval = 100; // Update every 100ms
+
+    state.workTimerId = setInterval(() => {
+        updateWorkTimer(totalMs);
+    }, updateInterval);
+
+    // Auto-complete after duration
+    setTimeout(() => {
+        completeWork();
+    }, totalMs);
+}
+
+function updateWorkTimer(totalMs) {
+    const elapsed = Date.now() - state.workStartTime;
+    const remaining = Math.max(0, totalMs - elapsed);
+    const gameTimeElapsed = (elapsed / 1000) * CONFIG.WORK_SPEED_MULTIPLIER; // Convert to game seconds
+
+    const hours = Math.floor(gameTimeElapsed / 3600);
+    const minutes = Math.floor((gameTimeElapsed % 3600) / 60);
+    const seconds = Math.floor(gameTimeElapsed % 60);
+
+    ui.workTimer.innerText = `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+}
+
+function completeWork() {
+    if (!state.workInProgress) return;
+
+    clearInterval(state.workTimerId);
+
+    const earnings = state.workDuration * CONFIG.HOURLY_WAGE;
+    state.balance += earnings;
+    state.totalHoursWorked += state.workDuration;
+
+    state.workInProgress = false;
+    state.workStartTime = null;
+
+    // Reset UI
+    ui.workProgress.classList.add('hidden');
+    ui.btnWork4h.disabled = false;
+    ui.btnWork8h.disabled = false;
+
+    showFeedback(`Shift Complete!`, `Earned ${fmtMoney(earnings)} for ${state.workDuration} hours of work.`);
+    updateUI();
+}
+
+function switchScreen(screen) {
+    state.currentScreen = screen;
+
+    if (screen === 'WORK') {
+        ui.workScreen.classList.remove('hidden');
+        ui.tradeScreen.classList.add('hidden');
+    } else {
+        ui.workScreen.classList.add('hidden');
+        ui.tradeScreen.classList.remove('hidden');
+    }
 }
 
 // --- PLAYER ACTIONS ---
@@ -326,6 +419,12 @@ function updateUI() {
         ui.posPnl.className = "value " + (diff >= 0 ? "text-up" : "text-down");
     }
 
+    // Update total hours worked display
+    const totalHoursEl = document.getElementById('total-hours');
+    if (totalHoursEl) {
+        totalHoursEl.innerText = state.totalHoursWorked;
+    }
+
     // Feature Unlocking
     if (state.level >= 2) {
         ui.btnStrategy.parentElement.style.display = 'flex';
@@ -427,6 +526,11 @@ function saveGame() {
         shares: state.shares,
         avgCost: state.avgCost,
         autoStrategyActive: state.autoStrategyActive,
+        currentScreen: state.currentScreen,
+        totalHoursWorked: state.totalHoursWorked,
+        workInProgress: state.workInProgress,
+        workDuration: state.workDuration,
+        workStartTime: state.workStartTime,
         lastSaveTime: Date.now()
     };
     localStorage.setItem('signalcraft_save', JSON.stringify(data));
@@ -445,8 +549,43 @@ function loadGame() {
         state.shares = data.shares;
         state.avgCost = data.avgCost;
         state.autoStrategyActive = data.autoStrategyActive;
+        state.currentScreen = data.currentScreen || 'WORK';
+        state.totalHoursWorked = data.totalHoursWorked || 0;
 
-        // Offline Progress
+        // Restore work in progress or complete offline work
+        if (data.workInProgress && data.workStartTime && data.workDuration) {
+            const now = Date.now();
+            const workTotalMs = (data.workDuration * 3600 * 1000) / CONFIG.WORK_SPEED_MULTIPLIER;
+            const workElapsed = now - data.workStartTime;
+
+            if (workElapsed >= workTotalMs) {
+                // Work completed while offline
+                const earnings = data.workDuration * CONFIG.HOURLY_WAGE;
+                state.balance += earnings;
+                state.totalHoursWorked += data.workDuration;
+                showFeedback("Work Completed Offline!", `Earned ${fmtMoney(earnings)} while you were away.`);
+            } else {
+                // Resume work in progress
+                state.workInProgress = true;
+                state.workStartTime = data.workStartTime;
+                state.workDuration = data.workDuration;
+
+                const remaining = workTotalMs - workElapsed;
+                ui.workProgress.classList.remove('hidden');
+                ui.btnWork4h.disabled = true;
+                ui.btnWork8h.disabled = true;
+
+                state.workTimerId = setInterval(() => {
+                    updateWorkTimer(workTotalMs);
+                }, 100);
+
+                setTimeout(() => {
+                    completeWork();
+                }, remaining);
+            }
+        }
+
+        // Offline Trading Progress
         if (data.lastSaveTime) {
             const now = Date.now();
             const elapsed = now - data.lastSaveTime;
@@ -481,6 +620,9 @@ function loadGame() {
             ui.btnStrategy.innerHTML = `<span class="icon">⚡</span> Auto-Strategy: ON`;
         }
 
+        // Switch to correct screen
+        switchScreen(state.currentScreen);
+
     } catch (e) {
         console.error("Save file corrupted", e);
     }
@@ -494,8 +636,15 @@ ui.btnBuy.addEventListener('click', buy);
 ui.btnSell.addEventListener('click', sell);
 ui.btnStrategy.addEventListener('click', toggleStrategy);
 
+// Work System Event Listeners
+ui.btnWork4h.addEventListener('click', () => startWork(4));
+ui.btnWork8h.addEventListener('click', () => startWork(8));
+ui.btnGoToTrade.addEventListener('click', () => switchScreen('TRADE'));
+ui.btnGoToWork.addEventListener('click', () => switchScreen('WORK'));
+
 // Hide unlocks initially
 ui.btnStrategy.parentElement.style.display = 'none';
 
 loadGame();
 initMarket();
+switchScreen(state.currentScreen); // Set initial screen

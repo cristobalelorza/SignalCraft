@@ -1,20 +1,24 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="description" content="SignalCraft: A strategic market intuition game.">
     <title>SignalCraft</title>
     <link rel="stylesheet" href="style.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=JetBrains+Mono:wght@400;700&display=swap"
+        rel="stylesheet">
 </head>
+
 <body>
     <div id="game-container">
-        <!-- Header: Status & Progression -->
+        <!-- Global Header: Status & Progression -->
         <header id="hud">
             <div class="stat-group">
                 <span class="label">Balance</span>
-                <span class="value money" id="balance-display">$10,000</span>
+                <span class="value money" id="balance-display">$0</span>
             </div>
             <div class="stat-group right">
                 <span class="label">Level <span id="level-display">1</span></span>
@@ -24,53 +28,113 @@
             </div>
         </header>
 
-        <!-- Main View: The Market -->
-        <main id="market-view">
-            <div class="price-readout">
-                <span id="current-price" class="price-large">100.00</span>
-                <span id="price-change" class="price-delta neutral">0.00%</span>
-            </div>
-            
-            <div class="chart-container">
-                <canvas id="market-chart"></canvas>
-                <div id="regime-hint-overlay" class="hidden">
-                    <span id="regime-text">Detecting...</span>
+        <!-- WORK SCREEN -->
+        <div id="work-screen" class="screen">
+            <div class="screen-content">
+                <div class="work-header">
+                    <h1>💼 Earn Your Capital</h1>
+                    <p class="subtitle">Work shifts to build your trading balance</p>
                 </div>
-            </div>
 
-            <!-- Visualization of Active Position -->
-            <div id="position-tracker" class="hidden">
-                <div class="position-info">
-                    <span class="label">Position</span>
-                    <span class="value" id="position-size">0</span>
+                <div class="job-card">
+                    <div class="job-header">
+                        <span class="job-icon">🍔</span>
+                        <div class="job-info">
+                            <h2>McDonald's Crew Member</h2>
+                            <p class="job-rate">$15/hour</p>
+                        </div>
+                    </div>
+
+                    <div id="work-progress" class="work-progress hidden">
+                        <div class="progress-info">
+                            <span class="label">Working...</span>
+                            <span id="work-timer" class="timer">0:00:00</span>
+                        </div>
+                        <div class="progress-bar-container">
+                            <div id="work-progress-bar" class="progress-bar-fill"></div>
+                        </div>
+                    </div>
+
+                    <div class="work-actions">
+                        <button id="work-4h" class="work-btn">
+                            <span class="btn-label">4 Hour Shift</span>
+                            <span class="btn-value">Earn $60</span>
+                        </button>
+                        <button id="work-8h" class="work-btn primary">
+                            <span class="btn-label">8 Hour Shift</span>
+                            <span class="btn-value">Earn $120</span>
+                        </button>
+                    </div>
                 </div>
-                <div class="position-pnl">
-                    <span class="label">P&L</span>
-                    <span class="value" id="position-pnl">0.00</span>
+
+                <div class="stats-card">
+                    <div class="stat-item">
+                        <span class="stat-label">Total Hours Worked</span>
+                        <span id="total-hours" class="stat-value">0</span>
+                    </div>
                 </div>
-            </div>
-        </main>
 
-        <!-- Controls -->
-        <footer id="controls">
-            <div id="feedback-panel" class="feedback-toast hidden">
-                <p id="feedback-message" class="feedback-text"></p>
-                <p id="feedback-insight" class="feedback-sub"></p>
-            </div>
-
-            <div class="strategy-toggle-container">
-                <button id="strategy-btn" class="secondary-btn" title="Automate logic based on current regime">
-                    <span class="icon">⚡</span> Auto-Strategy: OFF
+                <button id="go-to-trade" class="nav-btn">
+                    📈 Go to Trading →
                 </button>
             </div>
+        </div>
 
-            <div class="action-buttons">
-                <button id="sell-btn" class="action-btn sell">SELL</button>
-                <button id="buy-btn" class="action-btn buy">BUY</button>
+        <!-- TRADE SCREEN -->
+        <div id="trade-screen" class="screen hidden">
+            <div class="screen-nav">
+                <button id="go-to-work" class="back-btn">← Back to Work</button>
             </div>
-        </footer>
+
+            <!-- Main View: The Market -->
+            <main id="market-view">
+                <div class="price-readout">
+                    <span id="current-price" class="price-large">100.00</span>
+                    <span id="price-change" class="price-delta neutral">0.00%</span>
+                </div>
+
+                <div class="chart-container">
+                    <canvas id="market-chart"></canvas>
+                    <div id="regime-hint-overlay" class="hidden">
+                        <span id="regime-text">Detecting...</span>
+                    </div>
+                </div>
+
+                <!-- Visualization of Active Position -->
+                <div id="position-tracker" class="hidden">
+                    <div class="position-info">
+                        <span class="label">Position</span>
+                        <span class="value" id="position-size">0</span>
+                    </div>
+                    <div class="position-pnl">
+                        <span class="label">P&L</span>
+                        <span class="value" id="position-pnl">0.00</span>
+                    </div>
+                </div>
+            </main>
+
+            <!-- Controls -->
+            <footer id="controls">
+                <div id="feedback-panel" class="feedback-toast hidden">
+                    <p id="feedback-message" class="feedback-text"></p>
+                    <p id="feedback-insight" class="feedback-sub"></p>
+                </div>
+
+                <div class="strategy-toggle-container">
+                    <button id="strategy-btn" class="secondary-btn" title="Automate logic based on current regime">
+                        <span class="icon">⚡</span> Auto-Strategy: OFF
+                    </button>
+                </div>
+
+                <div class="action-buttons">
+                    <button id="sell-btn" class="action-btn sell">SELL</button>
+                    <button id="buy-btn" class="action-btn buy">BUY</button>
+                </div>
+            </footer>
+        </div>
     </div>
-    
+
     <script src="app.js"></script>
 </body>
+
 </html>
