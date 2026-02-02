@@ -321,6 +321,12 @@ function restartGame() {
     showFeedback("New Game", "Good luck! Manage your money wisely.");
 }
 
+function forceReset() {
+    localStorage.clear();
+    state.actionTakenToday = false;
+    location.reload();
+}
+
 function switchScreen(screen) {
     console.log('switchScreen called:', screen);
     state.currentScreen = screen;
@@ -527,8 +533,41 @@ function updateUI() {
 
     // Feature Unlocking
     if (state.level >= 2) {
-        ui.btnStrategy.parentElement.style.display = 'flex';
+        ui.btnStrategy.parentElement.style.display = 'block';
     } else {
+        ui.btnStrategy.parentElement.style.display = 'none';
+    }
+
+    // Disable action buttons if action already taken
+    if (state.actionTakenToday) {
+        if (ui.btnActionWork) {
+            ui.btnActionWork.style.opacity = '0.5';
+            ui.btnActionWork.style.pointerEvents = 'none';
+            ui.btnActionWork.innerHTML = '<span class="action-icon">✅</span><h3>Done!</h3><p class="action-desc">Wait for next day...</p>';
+        }
+        if (ui.btnActionTrade) {
+            ui.btnActionTrade.style.opacity = '0.5';
+            ui.btnActionTrade.style.pointerEvents = 'none';
+            ui.btnActionTrade.innerHTML = '<span class="action-icon">✅</span><h3>Done!</h3><p class="action-desc">Wait for next day...</p>';
+        }
+        if (ui.btnActionSleep) {
+            ui.btnActionSleep.style.opacity = '0.5';
+            ui.btnActionSleep.style.pointerEvents = 'none';
+        }
+    } else {
+        // Reset button states
+        if (ui.btnActionWork) {
+            ui.btnActionWork.style.opacity = '1';
+            ui.btnActionWork.style.pointerEvents = 'auto';
+            ui.btnActionWork.innerHTML = '<span class="action-icon">💼</span><h3>Work at McDonald\'s</h3><p class="action-desc">Earn $120 for the day</p><span class="action-hint">Safe choice - guaranteed income</span>';
+        }
+        if (ui.btnActionTrade) ui.btnActionTrade.style.opacity = '1';
+        if (ui.btnActionSleep) {
+            ui.btnActionSleep.style.opacity = '1';
+            ui.btnActionSleep.style.pointerEvents = 'auto';
+        }
+    }
+    if (state.level < 2) { // This 'if' is the 'else' for 'if (state.level >= 2)'
         ui.btnStrategy.parentElement.style.display = 'none';
     }
 
@@ -670,7 +709,10 @@ function loadGame() {
         state.negativeDaysStreak = data.negativeDaysStreak || 0;
         state.gameOver = data.gameOver || false;
         state.canTrade = data.canTrade || false;
-        state.actionTakenToday = data.actionTakenToday || false;
+
+        // BUG FIX: Always reset actionTakenToday on load
+        // This prevents soft-locks if the game was closed during the action delay
+        state.actionTakenToday = false;
 
         // Offline Trading Progress
         if (data.lastSaveTime) {
@@ -728,6 +770,7 @@ document.addEventListener('DOMContentLoaded', () => {
     ui.btnActionWork = document.getElementById('action-work');
     ui.btnActionTrade = document.getElementById('action-trade');
     ui.btnActionSleep = document.getElementById('action-sleep');
+    ui.btnDebugReset = document.getElementById('debug-reset'); // NEW
     ui.btnEndDay = document.getElementById('end-day-btn');
     ui.btnRestart = document.getElementById('restart-btn');
 
@@ -740,6 +783,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (ui.btnActionWork) ui.btnActionWork.addEventListener('click', doWork);
     if (ui.btnActionTrade) ui.btnActionTrade.addEventListener('click', doTrade);
     if (ui.btnActionSleep) ui.btnActionSleep.addEventListener('click', doSleep);
+    if (ui.btnDebugReset) ui.btnDebugReset.addEventListener('click', forceReset); // NEW
     if (ui.btnEndDay) ui.btnEndDay.addEventListener('click', endDay);
     if (ui.btnRestart) ui.btnRestart.addEventListener('click', restartGame);
 

@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SignalCraft Debug Test</title>
+    <style>
+        body {
+            background: #0b0c10;
+            color: white;
+            font-family: monospace;
+            padding: 20px;
+        }
+
+        button {
+            padding: 20px;
+            margin: 10px;
+            font-size: 18px;
+            cursor: pointer;
+        }
+
+        .status {
+            background: #1f2833;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+        }
+
+        .error {
+            color: #ff2a6d;
+        }
+
+        .success {
+            color: #66fcf1;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>SignalCraft Debug Test</h1>
+
+    <div class="status" id="status">
+        <h2>Current State:</h2>
+        <pre id="state-display"></pre>
+    </div>
+
+    <button onclick="clearSave()">1. Clear Saved Data</button>
+    <button onclick="testWork()">2. Test Work Button</button>
+    <button onclick="testTrade()">3. Test Trade Button</button>
+    <button onclick="showState()">4. Show Current State</button>
+
+    <div class="status">
+        <h2>Console Log:</h2>
+        <pre id="log"></pre>
+    </div>
+
+    <script>
+        // Simple test state
+        let testState = {
+            balance: 100,
+            currentDay: 1,
+            actionTakenToday: false,
+            canTrade: false
+        };
+
+        function log(message, type = 'info') {
+            const logEl = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            const className = type === 'error' ? 'error' : type === 'success' ? 'success' : '';
+            logEl.innerHTML += `<span class="${className}">[${timestamp}] ${message}</span>\n`;
+            console.log(message);
+        }
+
+        function showState() {
+            document.getElementById('state-display').textContent = JSON.stringify(testState, null, 2);
+            log('State displayed', 'info');
+        }
+
+        function clearSave() {
+            localStorage.clear();
+            log('✅ LocalStorage cleared!', 'success');
+            testState.actionTakenToday = false;
+            showState();
+        }
+
+        function testWork() {
+            log('Testing Work button...', 'info');
+
+            if (testState.actionTakenToday) {
+                log('❌ ERROR: actionTakenToday is TRUE (should be FALSE)', 'error');
+                return;
+            }
+
+            testState.balance += 120;
+            testState.actionTakenToday = true;
+
+            log('✅ Work successful! Balance: $' + testState.balance, 'success');
+            showState();
+
+            // Simulate end of day
+            setTimeout(() => {
+                testState.balance -= 30; // Daily cost
+                testState.currentDay++;
+                testState.actionTakenToday = false; // Reset for new day
+                log('Day ended. New day: ' + testState.currentDay, 'info');
+                showState();
+            }, 2000);
+        }
+
+        function testTrade() {
+            log('Testing Trade button...', 'info');
+
+            if (testState.actionTakenToday) {
+                log('❌ ERROR: actionTakenToday is TRUE (should be FALSE)', 'error');
+                return;
+            }
+
+            testState.canTrade = true;
+            testState.actionTakenToday = true;
+
+            log('✅ Trade screen would open', 'success');
+            showState();
+        }
+
+        // Initial display
+        showState();
+        log('Debug test loaded. Click buttons to test!', 'success');
+    </script>
+</body>
+
+</html>
