@@ -207,8 +207,8 @@ function doWork() {
     console.log('Work complete, new balance:', state.balance);
     showFeedback("Work Complete!", `Earned ${fmtMoney(CONFIG.WORK_INCOME)} from McDonald's.`);
 
-    // End day automatically after working
-    setTimeout(() => endDay(), 1500);
+    // End day instantly
+    endDay();
 }
 
 function doTrade() {
@@ -235,8 +235,8 @@ function doSleep() {
     console.log('Going to sleep');
     showFeedback("Sleeping...", "You rested but earned no income today.");
 
-    // End day automatically after sleeping
-    setTimeout(() => endDay(), 1500);
+    // End day instantly
+    endDay();
 }
 
 function endDay() {
@@ -271,11 +271,11 @@ function endDay() {
         `Daily cost: -${fmtMoney(CONFIG.DAILY_COST)}. Balance: ${fmtMoney(state.balance)}${streakWarning}`
     );
 
-    // Return to action screen
+    // Return to action screen quickly
     setTimeout(() => {
         switchScreen('ACTION');
         updateUI();
-    }, 3000);
+    }, 500);
 }
 
 function checkGameOver() {
