@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="description" content="SignalCraft: A strategic market intuition game.">
+    <meta name="description" content="SignalCraft: A strategic market survival game.">
     <title>SignalCraft</title>
     <link rel="stylesheet" href="style.css">
     <link
@@ -18,7 +18,13 @@
         <header id="hud">
             <div class="stat-group">
                 <span class="label">Balance</span>
-                <span class="value money" id="balance-display">$0</span>
+                <span class="value money" id="balance-display">$100</span>
+            </div>
+            <div class="stat-group center">
+                <h1 class="day-header">Day <span id="day-number">1</span></h1>
+                <div id="negative-streak" class="negative-warning hidden">
+                    ⚠️ Negative: <span id="streak-count">0</span>/3 days
+                </div>
             </div>
             <div class="stat-group right">
                 <span class="label">Level <span id="level-display">1</span></span>
@@ -28,62 +34,43 @@
             </div>
         </header>
 
-        <!-- WORK SCREEN -->
-        <div id="work-screen" class="screen">
+        <!-- ACTION SCREEN -->
+        <div id="action-screen" class="screen">
             <div class="screen-content">
-                <div class="work-header">
-                    <h1>💼 Earn Your Capital</h1>
-                    <p class="subtitle">Work shifts to build your trading balance</p>
+                <div class="action-header">
+                    <h2>What will you do today?</h2>
+                    <p class="daily-cost-info">Daily Cost: $30 (Rent + Food)</p>
                 </div>
 
-                <div class="job-card">
-                    <div class="job-header">
-                        <span class="job-icon">🍔</span>
-                        <div class="job-info">
-                            <h2>McDonald's Crew Member</h2>
-                            <p class="job-rate">$15/hour</p>
-                        </div>
-                    </div>
+                <div class="action-cards">
+                    <button id="action-work" class="action-card work-card">
+                        <span class="action-icon">💼</span>
+                        <h3>Work at McDonald's</h3>
+                        <p class="action-desc">Earn $120 for the day</p>
+                        <span class="action-hint">Safe choice - guaranteed income</span>
+                    </button>
 
-                    <div id="work-progress" class="work-progress hidden">
-                        <div class="progress-info">
-                            <span class="label">Working...</span>
-                            <span id="work-timer" class="timer">0:00:00</span>
-                        </div>
-                        <div class="progress-bar-container">
-                            <div id="work-progress-bar" class="progress-bar-fill"></div>
-                        </div>
-                    </div>
+                    <button id="action-trade" class="action-card trade-card">
+                        <span class="action-icon">📈</span>
+                        <h3>Trade Stocks</h3>
+                        <p class="action-desc">Try to profit from the market</p>
+                        <span class="action-hint">Risky - could gain or lose money</span>
+                    </button>
 
-                    <div class="work-actions">
-                        <button id="work-4h" class="work-btn">
-                            <span class="btn-label">4 Hour Shift</span>
-                            <span class="btn-value">Earn $60</span>
-                        </button>
-                        <button id="work-8h" class="work-btn primary">
-                            <span class="btn-label">8 Hour Shift</span>
-                            <span class="btn-value">Earn $120</span>
-                        </button>
-                    </div>
+                    <button id="action-sleep" class="action-card sleep-card">
+                        <span class="action-icon">😴</span>
+                        <h3>Sleep</h3>
+                        <p class="action-desc">Rest and skip the day</p>
+                        <span class="action-hint">No income, but costs still apply</span>
+                    </button>
                 </div>
-
-                <div class="stats-card">
-                    <div class="stat-item">
-                        <span class="stat-label">Total Hours Worked</span>
-                        <span id="total-hours" class="stat-value">0</span>
-                    </div>
-                </div>
-
-                <button id="go-to-trade" class="nav-btn">
-                    📈 Go to Trading →
-                </button>
             </div>
         </div>
 
         <!-- TRADE SCREEN -->
         <div id="trade-screen" class="screen hidden">
-            <div class="screen-nav">
-                <button id="go-to-work" class="back-btn">← Back to Work</button>
+            <div class="trade-header">
+                <button id="end-day-btn" class="end-day-btn">End Day & Pay Costs →</button>
             </div>
 
             <!-- Main View: The Market -->
@@ -131,6 +118,25 @@
                     <button id="buy-btn" class="action-btn buy">BUY</button>
                 </div>
             </footer>
+        </div>
+
+        <!-- GAME OVER SCREEN -->
+        <div id="game-over-screen" class="screen hidden">
+            <div class="game-over-content">
+                <h1 class="game-over-title">💀 Game Over</h1>
+                <p class="game-over-message">You couldn't afford living costs for 3 consecutive days.</p>
+                <div class="game-over-stats">
+                    <div class="stat">
+                        <span class="stat-label">Days Survived</span>
+                        <span class="stat-value" id="final-days">0</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">Final Balance</span>
+                        <span class="stat-value" id="final-balance">$0</span>
+                    </div>
+                </div>
+                <button id="restart-btn" class="restart-btn">🔄 Try Again</button>
+            </div>
         </div>
     </div>
 

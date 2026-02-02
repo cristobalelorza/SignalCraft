@@ -8,10 +8,10 @@
 const CONFIG = {
     TICK_RATE: 100, // ms per tick
     HISTORY_SIZE: 100, // Number of candles/ticks to show
-    STARTING_BALANCE: 0, // Start with $0, must work first
+    STARTING_BALANCE: 100, // Start with $100
     COMMISSION: 0.001, // 0.1% fee to discourage spamming
-    HOURLY_WAGE: 15, // $15/hour at McDonald's
-    WORK_SPEED_MULTIPLIER: 360, // 1 real second = 6 minutes game time (8hr work = ~80 seconds)
+    DAILY_COST: 30, // $30/day for rent + food
+    WORK_INCOME: 120, // $120 for working one day
 };
 
 // --- ENUMS ---
@@ -48,13 +48,13 @@ const state = {
     autoStrategyActive: false,
     lastStrategyAction: 0, // Tick count of last action
 
-    // Work System
-    currentScreen: 'WORK', // 'WORK' or 'TRADE'
-    workInProgress: false,
-    workStartTime: null,
-    workDuration: 0, // hours
-    totalHoursWorked: 0,
-    workTimerId: null,
+    // Day-Based Survival System
+    currentDay: 1,
+    negativeDaysStreak: 0, // Consecutive days ending with negative balance
+    gameOver: false,
+    currentScreen: 'ACTION', // 'ACTION' or 'TRADE' or 'GAMEOVER'
+    canTrade: false, // Only true if player chose "Trade" today
+    actionTakenToday: false,
 };
 
 // --- DOM ELEMENTS ---
@@ -75,15 +75,18 @@ const ui = {
     btnSell: document.getElementById('sell-btn'),
     btnStrategy: document.getElementById('strategy-btn'),
 
-    // Work Screen Elements
-    workScreen: document.getElementById('work-screen'),
+    // Day-Based System Elements
+    dayNumber: document.getElementById('day-number'),
+    negativeStreak: document.getElementById('negative-streak'),
+    streakCount: document.getElementById('streak-count'),
+    actionScreen: document.getElementById('action-screen'),
     tradeScreen: document.getElementById('trade-screen'),
-    btnWork4h: document.getElementById('work-4h'),
-    btnWork8h: document.getElementById('work-8h'),
-    workProgress: document.getElementById('work-progress'),
-    workTimer: document.getElementById('work-timer'),
-    btnGoToTrade: document.getElementById('go-to-trade'),
-    btnGoToWork: document.getElementById('go-to-work'),
+    gameOverScreen: document.getElementById('game-over-screen'),
+    btnActionWork: document.getElementById('action-work'),
+    btnActionTrade: document.getElementById('action-trade'),
+    btnActionSleep: document.getElementById('action-sleep'),
+    btnEndDay: document.getElementById('end-day-btn'),
+    btnRestart: document.getElementById('restart-btn'),
 };
 
 const ctx = ui.canvas.getContext('2d');
@@ -184,82 +187,148 @@ function gameTick() {
     updateUI();
 }
 
-// --- WORK SYSTEM ---
+// --- DAY-BASED SURVIVAL SYSTEM ---
 
-function startWork(hours) {
-    if (state.workInProgress) return;
+function doWork() {
+    if (state.actionTakenToday) return;
 
-    state.workInProgress = true;
-    state.workStartTime = Date.now();
-    state.workDuration = hours;
+    state.balance += CONFIG.WORK_INCOME;
+    state.actionTakenToday = true;
 
-    // Show progress UI
-    ui.workProgress.classList.remove('hidden');
-    ui.btnWork4h.disabled = true;
-    ui.btnWork8h.disabled = true;
+    showFeedback("Work Complete!", `Earned ${fmtMoney(CONFIG.WORK_INCOME)} from McDonald's.`);
 
-    // Start timer (simulated time)
-    const totalMs = (hours * 3600 * 1000) / CONFIG.WORK_SPEED_MULTIPLIER; // Real time needed
-    const updateInterval = 100; // Update every 100ms
+    // End day automatically after working
+    setTimeout(() => endDay(), 1500);
+}
 
-    state.workTimerId = setInterval(() => {
-        updateWorkTimer(totalMs);
-    }, updateInterval);
+function doTrade() {
+    if (state.actionTakenToday) return;
 
-    // Auto-complete after duration
+    state.canTrade = true;
+    state.actionTakenToday = true;
+    switchScreen('TRADE');
+}
+
+function doSleep() {
+    if (state.actionTakenToday) return;
+
+    state.actionTakenToday = true;
+    showFeedback("Sleeping...", "You rested but earned no income today.");
+
+    // End day automatically after sleeping
+    setTimeout(() => endDay(), 1500);
+}
+
+function endDay() {
+    // Deduct daily costs
+    state.balance -= CONFIG.DAILY_COST;
+
+    // Check if balance is negative
+    if (state.balance < 0) {
+        state.negativeDaysStreak++;
+    } else {
+        state.negativeDaysStreak = 0; // Reset streak
+    }
+
+    // Check for game over
+    if (state.negativeDaysStreak >= 3) {
+        gameOver();
+        return;
+    }
+
+    // Advance to next day
+    state.currentDay++;
+    state.actionTakenToday = false;
+    state.canTrade = false;
+
+    // Show end of day summary
+    const streakWarning = state.negativeDaysStreak > 0
+        ? ` ⚠️ Negative balance ${state.negativeDaysStreak}/3 days!`
+        : "";
+
+    showFeedback(
+        `Day ${state.currentDay - 1} Complete`,
+        `Daily cost: -${fmtMoney(CONFIG.DAILY_COST)}. Balance: ${fmtMoney(state.balance)}${streakWarning}`
+    );
+
+    // Return to action screen
     setTimeout(() => {
-        completeWork();
-    }, totalMs);
+        switchScreen('ACTION');
+        updateUI();
+    }, 3000);
 }
 
-function updateWorkTimer(totalMs) {
-    const elapsed = Date.now() - state.workStartTime;
-    const remaining = Math.max(0, totalMs - elapsed);
-    const gameTimeElapsed = (elapsed / 1000) * CONFIG.WORK_SPEED_MULTIPLIER; // Convert to game seconds
-
-    const hours = Math.floor(gameTimeElapsed / 3600);
-    const minutes = Math.floor((gameTimeElapsed % 3600) / 60);
-    const seconds = Math.floor(gameTimeElapsed % 60);
-
-    ui.workTimer.innerText = `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+function checkGameOver() {
+    return state.negativeDaysStreak >= 3;
 }
 
-function completeWork() {
-    if (!state.workInProgress) return;
+function gameOver() {
+    state.gameOver = true;
+    switchScreen('GAMEOVER');
 
-    clearInterval(state.workTimerId);
+    // Update final stats
+    const finalDaysEl = document.getElementById('final-days');
+    const finalBalanceEl = document.getElementById('final-balance');
+    if (finalDaysEl) finalDaysEl.innerText = state.currentDay;
+    if (finalBalanceEl) finalBalanceEl.innerText = fmtMoney(state.balance);
 
-    const earnings = state.workDuration * CONFIG.HOURLY_WAGE;
-    state.balance += earnings;
-    state.totalHoursWorked += state.workDuration;
+    showFeedback(
+        "Game Over",
+        `You couldn't afford living costs for 3 days in a row. Survived ${state.currentDay} days.`
+    );
+}
 
-    state.workInProgress = false;
-    state.workStartTime = null;
+function restartGame() {
+    // Reset all state
+    state.balance = CONFIG.STARTING_BALANCE;
+    state.shares = 0;
+    state.avgCost = 0;
+    state.level = 1;
+    state.xp = 0;
+    state.currentDay = 1;
+    state.negativeDaysStreak = 0;
+    state.gameOver = false;
+    state.actionTakenToday = false;
+    state.canTrade = false;
+    state.autoStrategyActive = false;
 
-    // Reset UI
-    ui.workProgress.classList.add('hidden');
-    ui.btnWork4h.disabled = false;
-    ui.btnWork8h.disabled = false;
+    // Clear save
+    localStorage.removeItem('signalcraft_save');
 
-    showFeedback(`Shift Complete!`, `Earned ${fmtMoney(earnings)} for ${state.workDuration} hours of work.`);
+    switchScreen('ACTION');
     updateUI();
+
+    showFeedback("New Game", "Good luck! Manage your money wisely.");
 }
 
 function switchScreen(screen) {
     state.currentScreen = screen;
 
-    if (screen === 'WORK') {
-        ui.workScreen.classList.remove('hidden');
+    if (screen === 'ACTION') {
+        ui.actionScreen.classList.remove('hidden');
         ui.tradeScreen.classList.add('hidden');
-    } else {
-        ui.workScreen.classList.add('hidden');
+        ui.gameOverScreen.classList.add('hidden');
+    } else if (screen === 'TRADE') {
+        ui.actionScreen.classList.add('hidden');
         ui.tradeScreen.classList.remove('hidden');
+        ui.gameOverScreen.classList.add('hidden');
+    } else if (screen === 'GAMEOVER') {
+        ui.actionScreen.classList.add('hidden');
+        ui.tradeScreen.classList.add('hidden');
+        ui.gameOverScreen.classList.remove('hidden');
     }
 }
+
 
 // --- PLAYER ACTIONS ---
 
 function buy() {
+    // Check if trading is allowed today
+    if (!state.canTrade) {
+        showFeedback("Can't Trade", "You must choose 'Trade' action first!");
+        return;
+    }
+
     // Max buy
     const amt = Math.floor(state.balance / state.currentPrice);
     if (amt <= 0) return;
@@ -277,6 +346,12 @@ function buy() {
 }
 
 function sell() {
+    // Check if trading is allowed today
+    if (!state.canTrade) {
+        showFeedback("Can't Trade", "You must choose 'Trade' action first!");
+        return;
+    }
+
     if (state.shares <= 0) return;
 
     const revenue = state.shares * state.currentPrice;
@@ -445,6 +520,21 @@ function updateUI() {
         document.getElementById('regime-text').innerText = regimeText;
     }
 
+    // Update day number
+    if (ui.dayNumber) {
+        ui.dayNumber.innerText = state.currentDay;
+    }
+
+    // Update negative streak warning
+    if (ui.negativeStreak && ui.streakCount) {
+        if (state.negativeDaysStreak > 0) {
+            ui.negativeStreak.classList.remove('hidden');
+            ui.streakCount.innerText = state.negativeDaysStreak;
+        } else {
+            ui.negativeStreak.classList.add('hidden');
+        }
+    }
+
     drawChart();
 }
 
@@ -527,10 +617,11 @@ function saveGame() {
         avgCost: state.avgCost,
         autoStrategyActive: state.autoStrategyActive,
         currentScreen: state.currentScreen,
-        totalHoursWorked: state.totalHoursWorked,
-        workInProgress: state.workInProgress,
-        workDuration: state.workDuration,
-        workStartTime: state.workStartTime,
+        currentDay: state.currentDay,
+        negativeDaysStreak: state.negativeDaysStreak,
+        gameOver: state.gameOver,
+        canTrade: state.canTrade,
+        actionTakenToday: state.actionTakenToday,
         lastSaveTime: Date.now()
     };
     localStorage.setItem('signalcraft_save', JSON.stringify(data));
@@ -549,41 +640,12 @@ function loadGame() {
         state.shares = data.shares;
         state.avgCost = data.avgCost;
         state.autoStrategyActive = data.autoStrategyActive;
-        state.currentScreen = data.currentScreen || 'WORK';
-        state.totalHoursWorked = data.totalHoursWorked || 0;
-
-        // Restore work in progress or complete offline work
-        if (data.workInProgress && data.workStartTime && data.workDuration) {
-            const now = Date.now();
-            const workTotalMs = (data.workDuration * 3600 * 1000) / CONFIG.WORK_SPEED_MULTIPLIER;
-            const workElapsed = now - data.workStartTime;
-
-            if (workElapsed >= workTotalMs) {
-                // Work completed while offline
-                const earnings = data.workDuration * CONFIG.HOURLY_WAGE;
-                state.balance += earnings;
-                state.totalHoursWorked += data.workDuration;
-                showFeedback("Work Completed Offline!", `Earned ${fmtMoney(earnings)} while you were away.`);
-            } else {
-                // Resume work in progress
-                state.workInProgress = true;
-                state.workStartTime = data.workStartTime;
-                state.workDuration = data.workDuration;
-
-                const remaining = workTotalMs - workElapsed;
-                ui.workProgress.classList.remove('hidden');
-                ui.btnWork4h.disabled = true;
-                ui.btnWork8h.disabled = true;
-
-                state.workTimerId = setInterval(() => {
-                    updateWorkTimer(workTotalMs);
-                }, 100);
-
-                setTimeout(() => {
-                    completeWork();
-                }, remaining);
-            }
-        }
+        state.currentScreen = data.currentScreen || 'ACTION';
+        state.currentDay = data.currentDay || 1;
+        state.negativeDaysStreak = data.negativeDaysStreak || 0;
+        state.gameOver = data.gameOver || false;
+        state.canTrade = data.canTrade || false;
+        state.actionTakenToday = data.actionTakenToday || false;
 
         // Offline Trading Progress
         if (data.lastSaveTime) {
@@ -636,11 +698,12 @@ ui.btnBuy.addEventListener('click', buy);
 ui.btnSell.addEventListener('click', sell);
 ui.btnStrategy.addEventListener('click', toggleStrategy);
 
-// Work System Event Listeners
-ui.btnWork4h.addEventListener('click', () => startWork(4));
-ui.btnWork8h.addEventListener('click', () => startWork(8));
-ui.btnGoToTrade.addEventListener('click', () => switchScreen('TRADE'));
-ui.btnGoToWork.addEventListener('click', () => switchScreen('WORK'));
+// Day-Based Action System Event Listeners
+ui.btnActionWork.addEventListener('click', doWork);
+ui.btnActionTrade.addEventListener('click', doTrade);
+ui.btnActionSleep.addEventListener('click', doSleep);
+ui.btnEndDay.addEventListener('click', endDay);
+ui.btnRestart.addEventListener('click', restartGame);
 
 // Hide unlocks initially
 ui.btnStrategy.parentElement.style.display = 'none';
