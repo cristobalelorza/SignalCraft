@@ -98,6 +98,11 @@ const rand = (min, max) => Math.random() * (max - min) + min;
 
 // --- MARKET ENGINE ---
 
+function renderLoop() {
+    updateUI();
+    requestAnimationFrame(renderLoop);
+}
+
 function initMarket() {
     // Fill initial history
     for (let i = 0; i < CONFIG.HISTORY_SIZE; i++) {
@@ -744,6 +749,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     loadGame();
+    console.log('Game loaded. Initial state:', {
+        currentDay: state.currentDay,
+        balance: state.balance,
+        actionTakenToday: state.actionTakenToday,
+        currentScreen: state.currentScreen
+    });
     initMarket();
     switchScreen(state.currentScreen); // Set initial screen
 });
