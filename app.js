@@ -190,11 +190,16 @@ function gameTick() {
 // --- DAY-BASED SURVIVAL SYSTEM ---
 
 function doWork() {
-    if (state.actionTakenToday) return;
+    console.log('doWork called', { actionTakenToday: state.actionTakenToday });
+    if (state.actionTakenToday) {
+        console.log('Action already taken today');
+        return;
+    }
 
     state.balance += CONFIG.WORK_INCOME;
     state.actionTakenToday = true;
 
+    console.log('Work complete, new balance:', state.balance);
     showFeedback("Work Complete!", `Earned ${fmtMoney(CONFIG.WORK_INCOME)} from McDonald's.`);
 
     // End day automatically after working
@@ -202,17 +207,27 @@ function doWork() {
 }
 
 function doTrade() {
-    if (state.actionTakenToday) return;
+    console.log('doTrade called', { actionTakenToday: state.actionTakenToday });
+    if (state.actionTakenToday) {
+        console.log('Action already taken today');
+        return;
+    }
 
     state.canTrade = true;
     state.actionTakenToday = true;
+    console.log('Switching to trade screen');
     switchScreen('TRADE');
 }
 
 function doSleep() {
-    if (state.actionTakenToday) return;
+    console.log('doSleep called', { actionTakenToday: state.actionTakenToday });
+    if (state.actionTakenToday) {
+        console.log('Action already taken today');
+        return;
+    }
 
     state.actionTakenToday = true;
+    console.log('Going to sleep');
     showFeedback("Sleeping...", "You rested but earned no income today.");
 
     // End day automatically after sleeping
@@ -302,21 +317,26 @@ function restartGame() {
 }
 
 function switchScreen(screen) {
+    console.log('switchScreen called:', screen);
     state.currentScreen = screen;
 
     if (screen === 'ACTION') {
-        ui.actionScreen.classList.remove('hidden');
-        ui.tradeScreen.classList.add('hidden');
-        ui.gameOverScreen.classList.add('hidden');
+        console.log('Showing ACTION screen');
+        if (ui.actionScreen) ui.actionScreen.classList.remove('hidden');
+        if (ui.tradeScreen) ui.tradeScreen.classList.add('hidden');
+        if (ui.gameOverScreen) ui.gameOverScreen.classList.add('hidden');
     } else if (screen === 'TRADE') {
-        ui.actionScreen.classList.add('hidden');
-        ui.tradeScreen.classList.remove('hidden');
-        ui.gameOverScreen.classList.add('hidden');
+        console.log('Showing TRADE screen');
+        if (ui.actionScreen) ui.actionScreen.classList.add('hidden');
+        if (ui.tradeScreen) ui.tradeScreen.classList.remove('hidden');
+        if (ui.gameOverScreen) ui.gameOverScreen.classList.add('hidden');
     } else if (screen === 'GAMEOVER') {
-        ui.actionScreen.classList.add('hidden');
-        ui.tradeScreen.classList.add('hidden');
-        ui.gameOverScreen.classList.remove('hidden');
+        console.log('Showing GAMEOVER screen');
+        if (ui.actionScreen) ui.actionScreen.classList.add('hidden');
+        if (ui.tradeScreen) ui.tradeScreen.classList.add('hidden');
+        if (ui.gameOverScreen) ui.gameOverScreen.classList.remove('hidden');
     }
+    console.log('Screen switched successfully');
 }
 
 
@@ -694,20 +714,36 @@ function loadGame() {
 setInterval(saveGame, 5000);
 
 // --- INIT ---
-ui.btnBuy.addEventListener('click', buy);
-ui.btnSell.addEventListener('click', sell);
-ui.btnStrategy.addEventListener('click', toggleStrategy);
+// Wait for DOM to be fully loaded
+document.addEventListener('DOMContentLoaded', () => {
+    // Re-initialize UI references to ensure they exist
+    ui.btnBuy = document.getElementById('buy-btn');
+    ui.btnSell = document.getElementById('sell-btn');
+    ui.btnStrategy = document.getElementById('strategy-btn');
+    ui.btnActionWork = document.getElementById('action-work');
+    ui.btnActionTrade = document.getElementById('action-trade');
+    ui.btnActionSleep = document.getElementById('action-sleep');
+    ui.btnEndDay = document.getElementById('end-day-btn');
+    ui.btnRestart = document.getElementById('restart-btn');
 
-// Day-Based Action System Event Listeners
-ui.btnActionWork.addEventListener('click', doWork);
-ui.btnActionTrade.addEventListener('click', doTrade);
-ui.btnActionSleep.addEventListener('click', doSleep);
-ui.btnEndDay.addEventListener('click', endDay);
-ui.btnRestart.addEventListener('click', restartGame);
+    // Add event listeners with null checks
+    if (ui.btnBuy) ui.btnBuy.addEventListener('click', buy);
+    if (ui.btnSell) ui.btnSell.addEventListener('click', sell);
+    if (ui.btnStrategy) ui.btnStrategy.addEventListener('click', toggleStrategy);
 
-// Hide unlocks initially
-ui.btnStrategy.parentElement.style.display = 'none';
+    // Day-Based Action System Event Listeners
+    if (ui.btnActionWork) ui.btnActionWork.addEventListener('click', doWork);
+    if (ui.btnActionTrade) ui.btnActionTrade.addEventListener('click', doTrade);
+    if (ui.btnActionSleep) ui.btnActionSleep.addEventListener('click', doSleep);
+    if (ui.btnEndDay) ui.btnEndDay.addEventListener('click', endDay);
+    if (ui.btnRestart) ui.btnRestart.addEventListener('click', restartGame);
 
-loadGame();
-initMarket();
-switchScreen(state.currentScreen); // Set initial screen
+    // Hide unlocks initially
+    if (ui.btnStrategy && ui.btnStrategy.parentElement) {
+        ui.btnStrategy.parentElement.style.display = 'none';
+    }
+
+    loadGame();
+    initMarket();
+    switchScreen(state.currentScreen); // Set initial screen
+});
