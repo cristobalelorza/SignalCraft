@@ -42,42 +42,50 @@
                     <p class="daily-cost-info">Daily Cost: $30 (Rent + Food)</p>
                 </div>
 
-                <div class="action-cards">
+                <!-- Modern Grid Layout -->
+                <div class="action-grid">
                     <button id="action-work" class="action-card work-card">
-                        <span class="action-icon">💼</span>
-                        <h3>Work at McDonald's</h3>
-                        <p class="action-desc">Earn $120 for the day</p>
-                        <span class="action-hint">Safe choice - guaranteed income</span>
+                        <div class="card-icon">💼</div>
+                        <h3>Work</h3>
+                        <p class="card-desc">McDonald's</p>
+                        <div class="card-stats">
+                            <span class="stat-badge income">+$120</span>
+                        </div>
+                        <p class="card-hint">Guaranteed income</p>
                     </button>
 
                     <button id="action-trade" class="action-card trade-card">
-                        <span class="action-icon">📈</span>
-                        <h3>Trade Stocks</h3>
-                        <p class="action-desc">Try to profit from the market</p>
-                        <span class="action-hint">Risky - could gain or lose money</span>
+                        <div class="card-icon">📈</div>
+                        <h3>Trade</h3>
+                        <p class="card-desc">Stock Market</p>
+                        <div class="card-stats">
+                            <span class="stat-badge risk">High Risk</span>
+                        </div>
+                        <p class="card-hint">Potential profits</p>
                     </button>
 
                     <button id="action-sleep" class="action-card sleep-card">
-                        <span class="action-icon">😴</span>
+                        <div class="card-icon">😴</div>
                         <h3>Sleep</h3>
-                        <p class="action-desc">Rest and skip the day</p>
-                        <span class="action-hint">No income, but costs still apply</span>
-                    </button>
-
-                    <button id="debug-reset" class="action-card debug-card"
-                        style="margin-top: 20px; border-color: #ff2a6d;">
-                        <span class="action-icon">🔄</span>
-                        <h3>RESET GAME DATA</h3>
-                        <p class="action-desc">Fix stuck buttons / Glitches</p>
-                        <span class="action-hint">Click this if buttons stop working</span>
+                        <p class="card-desc">Skip Day</p>
+                        <div class="card-stats">
+                            <span class="stat-badge neutral">$0</span>
+                        </div>
+                        <p class="card-hint">No income</p>
                     </button>
                 </div>
+
+                <!-- Debug Reset (smaller, bottom) -->
+                <button id="debug-reset" class="debug-reset-btn">
+                    🔄 Reset Game Data
+                </button>
             </div>
         </div>
 
         <!-- TRADE SCREEN -->
         <div id="trade-screen" class="screen hidden">
             <div class="trade-header">
+                <button id="trade-back-btn" class="secondary-btn" style="margin-right: auto;">← Back</button>
                 <button id="end-day-btn" class="end-day-btn">End Day & Pay Costs →</button>
             </div>
 
@@ -105,6 +113,16 @@
                         <span class="label">P&L</span>
                         <span class="value" id="position-pnl">0.00</span>
                     </div>
+                </div>
+
+                <!-- Trade Amount Control -->
+                <div class="trade-amount-control">
+                    <label for="trade-amount-slider">Trade Amount</label>
+                    <div class="slider-container">
+                        <input type="range" id="trade-amount-slider" min="10" max="100" value="100" step="10">
+                        <span id="trade-amount-display">100%</span>
+                    </div>
+                    <p class="trade-amount-hint">Use <span id="trade-amount-money">$0</span> of your balance</p>
                 </div>
             </main>
 

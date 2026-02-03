@@ -212,15 +212,11 @@ function doWork() {
 }
 
 function doTrade() {
-    console.log('doTrade called', { actionTakenToday: state.actionTakenToday });
-    if (state.actionTakenToday) {
-        console.log('Action already taken today');
-        return;
-    }
+    console.log('doTrade called');
+    // Trading is free now - doesn't consume day until you click "End Day"
+    // or if you want to just check prices and leave
 
     state.canTrade = true;
-    state.actionTakenToday = true;
-    console.log('Switching to trade screen');
     switchScreen('TRADE');
 }
 
@@ -260,6 +256,9 @@ function endDay() {
     state.currentDay++;
     state.actionTakenToday = false;
     state.canTrade = false;
+
+    // Survival XP
+    addXp(10);
 
     // Show end of day summary
     const streakWarning = state.negativeDaysStreak > 0
@@ -360,9 +359,15 @@ function buy() {
         return;
     }
 
-    // Max buy
-    const amt = Math.floor(state.balance / state.currentPrice);
-    if (amt <= 0) return;
+    // Use slider percentage
+    const pct = parseInt(ui.tradeSlider.value) / 100;
+    const availableBalance = state.balance * pct;
+
+    const amt = Math.floor(availableBalance / state.currentPrice);
+    if (amt <= 0) {
+        showFeedback("Order Failed", "Insufficient funds for this amount.");
+        return;
+    }
 
     const cost = amt * state.currentPrice;
     state.balance -= cost;
@@ -525,15 +530,9 @@ function updateUI() {
         ui.posPnl.className = "value " + (diff >= 0 ? "text-up" : "text-down");
     }
 
-    // Update total hours worked display
-    const totalHoursEl = document.getElementById('total-hours');
-    if (totalHoursEl) {
-        totalHoursEl.innerText = state.totalHoursWorked;
-    }
-
     // Feature Unlocking
     if (state.level >= 2) {
-        ui.btnStrategy.parentElement.style.display = 'block';
+        ui.btnStrategy.parentElement.style.display = 'flex';
     } else {
         ui.btnStrategy.parentElement.style.display = 'none';
     }
@@ -543,12 +542,7 @@ function updateUI() {
         if (ui.btnActionWork) {
             ui.btnActionWork.style.opacity = '0.5';
             ui.btnActionWork.style.pointerEvents = 'none';
-            ui.btnActionWork.innerHTML = '<span class="action-icon">✅</span><h3>Done!</h3><p class="action-desc">Wait for next day...</p>';
-        }
-        if (ui.btnActionTrade) {
-            ui.btnActionTrade.style.opacity = '0.5';
-            ui.btnActionTrade.style.pointerEvents = 'none';
-            ui.btnActionTrade.innerHTML = '<span class="action-icon">✅</span><h3>Done!</h3><p class="action-desc">Wait for next day...</p>';
+            ui.btnActionWork.innerHTML = '<div class="card-icon">✅</div><h3>Done!</h3>';
         }
         if (ui.btnActionSleep) {
             ui.btnActionSleep.style.opacity = '0.5';
@@ -559,29 +553,42 @@ function updateUI() {
         if (ui.btnActionWork) {
             ui.btnActionWork.style.opacity = '1';
             ui.btnActionWork.style.pointerEvents = 'auto';
-            ui.btnActionWork.innerHTML = '<span class="action-icon">💼</span><h3>Work at McDonald\'s</h3><p class="action-desc">Earn $120 for the day</p><span class="action-hint">Safe choice - guaranteed income</span>';
+            ui.btnActionWork.innerHTML = '<div class="card-icon">💼</div><h3>Work</h3><p class="card-desc">McDonald\'s</p><div class="card-stats"><span class="stat-badge income">+$120</span></div><p class="card-hint">Guaranteed income</p>';
         }
-        if (ui.btnActionTrade) ui.btnActionTrade.style.opacity = '1';
+        // Trade button always active
+        if (ui.btnActionTrade) {
+            ui.btnActionTrade.style.opacity = '1';
+            ui.btnActionTrade.style.pointerEvents = 'auto';
+            ui.btnActionTrade.innerHTML = '<div class="card-icon">📈</div><h3>Trade</h3><p class="card-desc">Stock Market</p><div class="card-stats"><span class="stat-badge risk">High Risk</span></div><p class="card-hint">Potential profits</p>';
+        }
         if (ui.btnActionSleep) {
             ui.btnActionSleep.style.opacity = '1';
             ui.btnActionSleep.style.pointerEvents = 'auto';
         }
     }
-    if (state.level < 2) { // This 'if' is the 'else' for 'if (state.level >= 2)'
-        ui.btnStrategy.parentElement.style.display = 'none';
+
+    // Update Trade Slider Money Display
+    if (ui.tradeSlider && ui.tradeMoney) {
+        const pct = parseInt(ui.tradeSlider.value) / 100;
+        const amount = state.balance * pct;
+        ui.tradeMoney.innerText = fmtMoney(amount);
     }
+
+    // XP / Level Bar
+    ui.level.innerText = state.level;
+    const xpPct = (state.xp / state.nextLevelXp) * 100;
+    ui.xpBar.style.width = `${xpPct}%`;
 
     if (state.level >= 3) {
         const hint = document.getElementById('regime-hint-overlay');
-        hint.classList.remove('hidden');
-
-        // Update hint text logic
-        let regimeText = "Detecting...";
-        if (state.currentRegime.includes('TREND')) regimeText = "TREND DETECTED";
-        else if (state.currentRegime === 'RANGE') regimeText = "RANGE BOUND";
-        else regimeText = "HIGH VOLATILITY";
-
-        document.getElementById('regime-text').innerText = regimeText;
+        if (hint) {
+            hint.classList.remove('hidden');
+            let regimeText = "Detecting...";
+            if (state.currentRegime.includes('TREND')) regimeText = "TREND DETECTED";
+            else if (state.currentRegime === 'RANGE') regimeText = "RANGE BOUND";
+            else regimeText = "HIGH VOLATILITY";
+            document.getElementById('regime-text').innerText = regimeText;
+        }
     }
 
     // Update day number
@@ -770,9 +777,15 @@ document.addEventListener('DOMContentLoaded', () => {
     ui.btnActionWork = document.getElementById('action-work');
     ui.btnActionTrade = document.getElementById('action-trade');
     ui.btnActionSleep = document.getElementById('action-sleep');
-    ui.btnDebugReset = document.getElementById('debug-reset'); // NEW
+    ui.btnActionSleep = document.getElementById('action-sleep');
+    ui.btnDebugReset = document.getElementById('debug-reset');
     ui.btnEndDay = document.getElementById('end-day-btn');
+    ui.btnTradeBack = document.getElementById('trade-back-btn'); // NEW
     ui.btnRestart = document.getElementById('restart-btn');
+
+    ui.tradeSlider = document.getElementById('trade-amount-slider'); // NEW
+    ui.tradeDisplay = document.getElementById('trade-amount-display'); // NEW
+    ui.tradeMoney = document.getElementById('trade-amount-money'); // NEW
 
     // Add event listeners with null checks
     if (ui.btnBuy) ui.btnBuy.addEventListener('click', buy);
@@ -783,9 +796,18 @@ document.addEventListener('DOMContentLoaded', () => {
     if (ui.btnActionWork) ui.btnActionWork.addEventListener('click', doWork);
     if (ui.btnActionTrade) ui.btnActionTrade.addEventListener('click', doTrade);
     if (ui.btnActionSleep) ui.btnActionSleep.addEventListener('click', doSleep);
-    if (ui.btnDebugReset) ui.btnDebugReset.addEventListener('click', forceReset); // NEW
+    if (ui.btnDebugReset) ui.btnDebugReset.addEventListener('click', forceReset);
     if (ui.btnEndDay) ui.btnEndDay.addEventListener('click', endDay);
+    if (ui.btnTradeBack) ui.btnTradeBack.addEventListener('click', () => switchScreen('ACTION')); // NEW
     if (ui.btnRestart) ui.btnRestart.addEventListener('click', restartGame);
+
+    // Slider listener
+    if (ui.tradeSlider) {
+        ui.tradeSlider.addEventListener('input', (e) => {
+            if (ui.tradeDisplay) ui.tradeDisplay.innerText = e.target.value + '%';
+            updateUI(); // To update money display
+        });
+    }
 
     // Hide unlocks initially
     if (ui.btnStrategy && ui.btnStrategy.parentElement) {
